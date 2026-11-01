@@ -28,8 +28,7 @@ jobs:
           else
             if [ -z "$open" ]; then
               gh label create down -R "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
-              gh issue create -R "$GITHUB_REPOSITORY" --label down --title "lab.yangjunman.com 장애 감지" --body "시각: $(date -u +%FT%TZ)
-          응답: $BODY"
+              gh issue create -R "$GITHUB_REPOSITORY" --label down --title "lab.yangjunman.com 장애 감지" --body "시각: $(date -u +%FT%TZ) / 응답: $BODY"
             fi
             exit 1
           fi

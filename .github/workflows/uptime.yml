@@ -1,0 +1,35 @@
+name: lab uptime
+on:
+  schedule: [{cron: "17,47 * * * *"}]   # 30분마다
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check status (2 tries)
+        id: s
+        run: |
+          ok=false
+          for i in 1 2; do
+            body=$(curl -s --max-time 15 https://lab.yangjunman.com/status || true)
+            echo "try $i: $body"
+            if echo "$body" | grep -q '"minutes": *true' && echo "$body" | grep -q '"winlab": *true'; then ok=true; break; fi
+            sleep 60
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"; echo "body=${body:-no response}" >> "$GITHUB_OUTPUT"
+      - name: open or close incident issue
+        env: {GH_TOKEN: "${{ github.token }}", OK: "${{ steps.s.outputs.ok }}", BODY: "${{ steps.s.outputs.body }}"}
+        run: |
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --label down --state open --json number -q '.[0].number')
+          if [ "$OK" = "true" ]; then
+            [ -n "$open" ] && gh issue close "$open" -R "$GITHUB_REPOSITORY" -c "복구 확인: $(date -u +%FT%TZ)" || true
+          else
+            if [ -z "$open" ]; then
+              gh label create down -R "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
+              gh issue create -R "$GITHUB_REPOSITORY" --label down --title "lab.yangjunman.com 장애 감지" --body "시각: $(date -u +%FT%TZ)
+          응답: $BODY"
+            fi
+            exit 1
+          fi
